@@ -59,7 +59,7 @@ def get_nasdaq_100():
     return NASDAQ_100
 
 @st.cache_data(ttl=86400)
-def get_sp500():
+def get_sp100():
     try:
         tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
         df = tables[0]
@@ -67,7 +67,7 @@ def get_sp500():
     except Exception:
         pass
 
-    return SP500
+    return SP100
 
 @st.cache_data(ttl=86400)
 def get_dax_40():
