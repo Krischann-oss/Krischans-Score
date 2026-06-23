@@ -9,19 +9,25 @@ st.caption("Lern-Tool. Keine Finanzberatung.")
 
 DEFAULT_WATCHLIST = "QQQ, AAPL, NVDA, MU, PLD, BTC-USD, ETH-USD"
 
-NASDAQ_100 = [
-    "AAPL", "MSFT", "NVDA", "AMZN", "META", "AVGO", "GOOGL", "GOOG", "TSLA",
-    "COST", "NFLX", "AMD", "PEP", "ADBE", "CSCO", "TMUS", "INTU", "QCOM",
-    "AMAT", "TXN", "INTC", "AMGN", "HON", "BKNG", "VRTX", "ISRG", "MU",
-    "ADI", "PANW", "LRCX", "KLAC", "ADP", "MDLZ", "SBUX", "GILD", "REGN",
-    "MELI", "PYPL", "SNPS", "CDNS", "MAR", "CRWD", "ABNB", "CSX", "NXPI"
-]
+@st.cache_data(ttl=86400)
+def get_nasdaq_100():
+    tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
+    df = tables[4]
+    return df["Ticker"].astype(str).str.replace(".", "-", regex=False).tolist()
 
-DAX_40 = [
-    "SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "AIR.DE", "MUV2.DE", "MBG.DE",
-    "BAS.DE", "BMW.DE", "RHM.DE", "IFX.DE", "DBK.DE", "DHL.DE", "VOW3.DE",
-    "HEN3.DE", "ADS.DE", "BEI.DE", "EOAN.DE", "MRK.DE", "BAYN.DE"
-]
+@st.cache_data(ttl=86400)
+def get_sp500():
+    tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+    df = tables[0]
+    return df["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist()
+
+@st.cache_data(ttl=86400)
+def get_dax_40():
+    tables = pd.read_html("https://en.wikipedia.org/wiki/DAX")
+    for df in tables:
+        if "Ticker" in df.columns:
+            return (df["Ticker"].astype(str) + ".DE").tolist()
+    return []
 
 CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD"]
 
