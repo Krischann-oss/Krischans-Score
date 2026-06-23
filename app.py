@@ -36,9 +36,9 @@ with st.sidebar:
     st.header("Einstellungen")
 
     scan_mode = st.radio(
-        "Scan-Modus",
-        ["Eigene Watchlist", "Nasdaq 100", "DAX 40", "Krypto", "Alles scannen"],
-    )
+    "Scan-Modus",
+    ["Eigene Watchlist", "Nasdaq 100", "S&P 500", "DAX 40", "Krypto", "Alles scannen"],
+)
 
     tickers_text = st.text_area(
         "Eigene Ticker, getrennt durch Komma",
@@ -60,14 +60,15 @@ def get_tickers() -> list[str]:
     if scan_mode == "Eigene Watchlist":
         return own
     if scan_mode == "Nasdaq 100":
-        return NASDAQ_100
+        return get_nasdaq_100()
+    if scan_mode == "S&P 500":
+        return get_sp500()
     if scan_mode == "DAX 40":
-        return DAX_40
+        return get_dax_40()
     if scan_mode == "Krypto":
         return CRYPTO
 
-    return sorted(set(own + NASDAQ_100 + DAX_40 + CRYPTO))
-
+    return sorted(set(own + get_nasdaq_100() + get_sp500() + get_dax_40() + CRYPTO))
 
 def rsi(series: pd.Series, length: int = 14) -> pd.Series:
     delta = series.diff()
