@@ -180,7 +180,7 @@ def analyze(ticker: str):
     data = data.copy()
     data["EMA20"] = data["Close"].ewm(span=20, adjust=False).mean()
     data["RSI14"] = rsi(data["Close"], 14)
-    data["EMA20_slope"] = data["EMA20"] - data["EMA20"].shift(5)
+    data["EMA20_slope"] = data["EMA20"] - data["EMA20"].shift(20)
     data["Dist_EMA20_%"] = (data["Close"] - data["EMA20"]) / data["EMA20"] * 100
 
     last = data.iloc[-1]
@@ -199,7 +199,7 @@ def analyze(ticker: str):
 
     # EMA20
 
-    if slope > ema20 * 0.01:
+    if slope > ema20 * 0.03:
         trend_score += 5
         notes.append("EMA20 steigt stark")
     elif slope > 0:
@@ -207,6 +207,7 @@ def analyze(ticker: str):
         notes.append("EMA20 steigt leicht")
     else:
         notes.append("EMA20 fällt")
+
 
     # Kurs zu EMA20
 
