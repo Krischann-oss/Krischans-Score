@@ -117,13 +117,13 @@ def get_tickers() -> list[str]:
     if scan_mode == "Nasdaq 100":
         return get_nasdaq_100()
     if scan_mode == "S&P 500":
-        return get_sp500()
+        return get_sp100()
     if scan_mode == "DAX 40":
         return get_dax_40()
     if scan_mode == "Krypto":
         return CRYPTO
 
-    return sorted(set(own + get_nasdaq_100() + get_sp500() + get_dax_40() + CRYPTO))
+    return sorted(set(own + get_nasdaq_100() + get_sp100() + get_dax_40() + CRYPTO))
 
 def rsi(series: pd.Series, length: int = 14) -> pd.Series:
     delta = series.diff()
