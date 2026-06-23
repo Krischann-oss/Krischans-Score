@@ -103,9 +103,12 @@ with st.sidebar:
     period = st.selectbox("Zeitraum", ["3mo", "6mo", "1y", "2y"], index=2)
     interval = st.selectbox("Kerzen", ["1d", "1h", "4h"], index=0)
 
-    buy_threshold = st.slider("Kaufalarm ab Score", 0, 10, 8)
-    sell_threshold = st.slider("Warnsignal bis Score", 0, 10, 4)
+    buy_threshold = st.slider(
+        "Kaufalarm ab Score", 0, 25, 18)
 
+    sell_threshold = st.slider(
+        "Warnsignal bis Score", 0, 25, 9)
+    
     max_results = st.slider("Max. angezeigte Ergebnisse", 5, 100, 30)
 
 
@@ -194,71 +197,65 @@ def analyze(ticker: str):
     entry_score = 0
     notes = []
 
-    # 1. Trend
-    if close > float(prev20["Close"].median()) and close > float(prev20["Close"].iloc[0]):
-        score += 2
-        trend_score += 2
-        notes.append("Trend positiv")
-    elif close > float(prev20["Close"].median()):
-        score += 1
-        trend_score += 1
-        notes.append("Trend neutral")
-    else:
-        notes.append("Trend schwach")
+    # EMA20
 
-    # 2. EMA20
-    if slope > 0:
-        score += 2
-        trend_score += 2
-        notes.append("EMA20 steigt")
-    elif abs(slope / ema20) < 0.005:
-        score += 1
-        trend_score += 1
-        notes.append("EMA20 flach")
+    if slope > ema20 * 0.01:
+        trend_score += 5
+        notes.append("EMA20 steigt stark")
+    elif slope > 0:
+        trend_score += 3
+        notes.append("EMA20 steigt leicht")
     else:
         notes.append("EMA20 fällt")
 
-    # 3. Kurs zur EMA20
-    if 0 <= dist <= 3:
-        score += 2
-        entry_score += 2
-        notes.append("Kurs ideal nahe über EMA20")
-    elif 3 < dist <= 8:
-        score += 1
-        entry_score += 1
-        notes.append("Kurs über EMA20, aber etwas weit gelaufen")
-    elif dist > 8:
-        notes.append("Kurs deutlich über EMA20 - Einstieg spät")
+    # Kurs zu EMA20
+
+    if close > ema20:
+        trend_score += 5
+        notes.append("Kurs über EMA20")
+    elif abs(dist) < 2:
+        trend_score += 2
+        notes.append("Kurs nahe EMA20")
     else:
         notes.append("Kurs unter EMA20")
 
-    # 4. RSI
+    # Trendstruktur
+
+    if close > prev20["Close"].max() * 0.95:
+        trend_score += 5
+        notes.append("Höhere Hochs/Tiefs")
+    elif close > prev20["Close"].median():
+        trend_score += 2
+        notes.append("Seitwärts")
+    else:
+        notes.append("Fallender Trend")
+
+    # RSI
+
     if 40 <= rsi14 <= 55:
-        score += 2
-        entry_score += 2
-        notes.append("RSI im Sweet Spot")
+        entry_score += 5
+        notes.append("RSI Sweet Spot")
     elif 55 < rsi14 <= 65:
-        score += 1
-        entry_score += 1
-        notes.append("RSI stark, aber nicht ideal")
+        entry_score += 3
+        notes.append("RSI etwas hoch")
+    elif 30 <= rsi14 < 40:
+        entry_score += 2
+        notes.append("RSI niedrig")
     else:
-        notes.append("RSI außerhalb Zielbereich")
+        notes.append("RSI ungünstig")
 
-    # 5. Widerstand / Chartbild
-    high20 = float(prev20["High"].max())
-    room_to_high = (high20 - close) / close * 100
+    # Abstand zur EMA20
 
-    if room_to_high > 3 or close >= high20:
-        score += 2
-        trend_score += 1
-        entry_score += 1
-        notes.append("Chartbild okay")
-    elif room_to_high > 0:
-        score += 1
-        entry_score += 1
-        notes.append("Widerstand nahe am letzten Hoch")
+    if 0 <= dist <= 3:
+        entry_score += 5
+        notes.append("Perfekte EMA20-Nähe")
+    elif 3 < dist <= 8:
+        entry_score += 3
+        notes.append("Etwas von EMA20 entfernt")
     else:
-        notes.append("Chartbild unklar")
+        notes.append("Zu weit von EMA20 entfernt")
+
+    score = trend_score + entry_score
 
     if score >= buy_threshold:
         signal = "🟢 Kaufkandidat / Watchlist"
@@ -266,6 +263,17 @@ def analyze(ticker: str):
         signal = "🔴 Meiden / Verkauf prüfen"
     else:
         signal = "🟡 Beobachten"
+
+    if score >= 22:
+        category = "🏆 Elite"
+    elif score >= 18:
+        category = "🚀 Kaufkandidat"
+    elif score >= 15:
+        category = "👀 Watchlist"
+    elif score >= 10:
+        category = "⚠️ Schwach"
+    else:
+        category = "🔴 Meiden"
 
     result = {
         "Ticker": ticker,
@@ -276,7 +284,8 @@ def analyze(ticker: str):
         "RSI14": round(rsi14, 2),
         "Trend-Score": trend_score,
         "Entry-Score": entry_score,
-        "Score": int(score),
+        "Score": score,
+        "Kategorie": category,
         "Signal": signal,
         "Begründung": "; ".join(notes),
     }
