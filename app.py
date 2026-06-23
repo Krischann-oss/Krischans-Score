@@ -1,0 +1,191 @@
+import pandas as pd
+import streamlit as st
+import yfinance as yf
+import plotly.graph_objects as go
+
+st.set_page_config(page_title="Krischan Score Web-App", layout="wide")
+st.title("Krischan Score: EMA20 + RSI")
+st.caption("Lern-Tool: bewertet Watchlist-Werte nach deinem Punktesystem. Keine Finanzberatung.")
+
+with st.sidebar:
+    st.header("Einstellungen")
+    tickers_text = st.text_area(
+        "Ticker, getrennt durch Komma",
+        "QQQ, AAPL, NVDA, MU, PLD, BTC-USD, ETH-USD"
+    )
+    period = st.selectbox("Zeitraum", ["3mo", "6mo", "1y", "2y"], index=2)
+    interval = st.selectbox("Kerzen", ["1d", "1h", "4h"], index=0)
+    buy_threshold = st.slider("Kaufalarm ab Score", 0, 10, 8)
+    sell_threshold = st.slider("Verkaufs-/Warnsignal bis Score", 0, 10, 4)
+
+
+def rsi(series: pd.Series, length: int = 14) -> pd.Series:
+    delta = series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / length, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / length, adjust=False).mean()
+    rs = avg_gain / avg_loss.replace(0, pd.NA)
+    return 100 - (100 / (1 + rs))
+
+
+@st.cache_data(ttl=900)
+def load_data(ticker: str, period: str, interval: str) -> pd.DataFrame:
+    data = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+    return data
+
+
+def analyze(ticker: str):
+    data = load_data(ticker, period, interval)
+    if data.empty or len(data) < 60:
+        return None, None
+
+    data = data.copy()
+    data["EMA20"] = data["Close"].ewm(span=20, adjust=False).mean()
+    data["RSI14"] = rsi(data["Close"], 14)
+    data["EMA20_slope"] = data["EMA20"] - data["EMA20"].shift(5)
+    data["Dist_EMA20_%"] = (data["Close"] - data["EMA20"]) / data["EMA20"] * 100
+
+    last = data.iloc[-1]
+    prev20 = data.iloc[-21:-1]
+
+    close = float(last["Close"])
+    ema20 = float(last["EMA20"])
+    rsi14 = float(last["RSI14"])
+    dist = float(last["Dist_EMA20_%"])
+    slope = float(last["EMA20_slope"])
+
+    score = 0
+    notes = []
+
+    if close > float(prev20["Close"].median()) and close > float(prev20["Close"].iloc[0]):
+        score += 2
+        notes.append("Trend positiv")
+    elif close > float(prev20["Close"].median()):
+        score += 1
+        notes.append("Trend neutral/leicht positiv")
+    else:
+        notes.append("Trend schwach")
+
+    if slope > 0:
+        score += 2
+        notes.append("EMA20 steigt")
+    elif abs(slope / ema20) < 0.005:
+        score += 1
+        notes.append("EMA20 flach")
+    else:
+        notes.append("EMA20 fällt")
+
+    if 0 <= dist <= 3:
+        score += 2
+        notes.append("Kurs ideal nahe über EMA20")
+    elif dist > 3:
+        score += 1
+        notes.append("Kurs über EMA20, aber weit gelaufen")
+    else:
+        notes.append("Kurs unter EMA20")
+
+    if 40 <= rsi14 <= 55:
+        score += 2
+        notes.append("RSI im Sweet Spot")
+    elif 55 < rsi14 <= 65:
+        score += 1
+        notes.append("RSI stark, aber nicht ideal")
+    else:
+        notes.append("RSI außerhalb Zielbereich")
+
+    high20 = float(prev20["High"].max())
+    room_to_high = (high20 - close) / close * 100
+    if room_to_high > 3 or close >= high20:
+        score += 2
+        notes.append("Chartbild okay / keine enge Barriere erkannt")
+    elif room_to_high > 0:
+        score += 1
+        notes.append("Widerstand nahe am letzten Hoch")
+    else:
+        notes.append("Chartbild unklar")
+
+    if score >= buy_threshold:
+        signal = "🟢 Kaufkandidat / Watchlist"
+    elif score <= sell_threshold:
+        signal = "🔴 Meiden / Verkauf prüfen"
+    else:
+        signal = "🟡 Beobachten"
+
+    result = {
+        "Ticker": ticker,
+        "Kurs": round(close, 2),
+        "EMA20": round(ema20, 2),
+        "Abstand EMA20 %": round(dist, 2),
+        "RSI14": round(rsi14, 2),
+        "Score": int(score),
+        "Signal": signal,
+        "Begründung": "; ".join(notes),
+    }
+    return result, data
+
+
+tickers = [t.strip().upper() for t in tickers_text.split(",") if t.strip()]
+rows = []
+charts = {}
+
+with st.spinner("Daten werden geladen..."):
+    for ticker in tickers:
+        result, data = analyze(ticker)
+        if result:
+            rows.append(result)
+            charts[ticker] = data
+
+if not rows:
+    st.warning("Keine Daten geladen. Prüfe die Ticker-Symbole.")
+    st.stop()
+
+summary = pd.DataFrame(rows).sort_values("Score", ascending=False).reset_index(drop=True)
+
+st.subheader("Bewertung")
+st.dataframe(summary, use_container_width=True, hide_index=True)
+
+st.subheader("Zum Chart springen")
+if "selected_ticker" not in st.session_state:
+    st.session_state.selected_ticker = summary.loc[0, "Ticker"]
+
+cols = st.columns(min(4, len(summary)))
+for i, row in summary.iterrows():
+    with cols[i % len(cols)]:
+        label = f"{row['Ticker']} · {row['Score']}/10"
+        if st.button(label, key=f"open_{row['Ticker']}", use_container_width=True):
+            st.session_state.selected_ticker = row["Ticker"]
+
+selected = st.session_state.selected_ticker
+data = charts[selected]
+row = summary[summary["Ticker"] == selected].iloc[0]
+
+st.markdown(f"## {selected} · Score {row['Score']}/10")
+st.write(row["Signal"])
+st.caption(row["Begründung"])
+
+fig = go.Figure()
+fig.add_trace(go.Candlestick(
+    x=data.index,
+    open=data["Open"],
+    high=data["High"],
+    low=data["Low"],
+    close=data["Close"],
+    name="Kurs"
+))
+fig.add_trace(go.Scatter(x=data.index, y=data["EMA20"], mode="lines", name="EMA20"))
+fig.update_layout(title=f"{selected}: Kurs + EMA20", xaxis_rangeslider_visible=False, height=560)
+st.plotly_chart(fig, use_container_width=True)
+
+fig2 = go.Figure()
+fig2.add_trace(go.Scatter(x=data.index, y=data["RSI14"], mode="lines", name="RSI14"))
+fig2.add_hline(y=70, line_dash="dash")
+fig2.add_hline(y=55, line_dash="dot")
+fig2.add_hline(y=40, line_dash="dot")
+fig2.add_hline(y=30, line_dash="dash")
+fig2.update_layout(title=f"{selected}: RSI14", height=300)
+st.plotly_chart(fig2, use_container_width=True)
+
+st.info("Hinweis: Das Tool meldet keine garantierten Gewinne. Es markiert nur Setups nach deinen Regeln.")
