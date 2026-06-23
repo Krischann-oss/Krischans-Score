@@ -323,7 +323,7 @@ summary = (
 st.subheader("📊 Bewertung")
 st.dataframe(summary, use_container_width=True, hide_index=True)
 
-top = summary[summary["Score"] >= buy_threshold]
+top = summary[summary["Score"] >= 24]
 warn = summary[summary["Score"] <= sell_threshold]
 
 col1, col2, col3 = st.columns(3)
@@ -331,7 +331,7 @@ col1.metric("Gescannt", len(rows))
 col2.metric("Kaufkandidaten", len(top))
 col3.metric("Warnsignale", len(warn))
 
-st.subheader("🚀 Top-Kandidaten")
+st.subheader("🏆 sehr gute Setups")
 if top.empty:
     st.info("Aktuell keine Werte über deinem Kaufalarm.")
 else:
