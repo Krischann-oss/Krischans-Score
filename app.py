@@ -9,27 +9,82 @@ st.caption("Lern-Tool. Keine Finanzberatung.")
 
 DEFAULT_WATCHLIST = "QQQ, AAPL, NVDA, MU, PLD, BTC-USD, ETH-USD"
 
+NASDAQ_100 = [
+    "AAPL","ABNB","ADBE","ADI","ADP","ADSK","AEP","ALNY","AMAT","AMD",
+    "AMGN","APP","ARM","ASML","AVGO","AXON","BKNG","CCEP","CHTR","CMCSA",
+    "COST","CPRT","CRWD","CSCO","CSGP","CSX","CTAS","DASH","DDOG","DXCM",
+    "EA","EXC","FANG","FAST","FER","FTNT","GEHC","GFS","GILD","GOOG",
+    "GOOGL","HON","IDXX","INTC","INTU","ISRG","KDP","KHC","KLAC","LIN",
+    "LRCX","MAR","MCHP","MDB","MDLZ","MELI","META","MNST","MRVL","MSFT",
+    "MSTR","MU","NFLX","NVDA","NXPI","ODFL","ORLY","PANW","PAYX","PCAR",
+    "PDD","PEP","PYPL","QCOM","REGN","ROP","ROST","SBUX","SHOP","SNDK",
+    "SNPS","STX","TEAM","TMUS","TSLA","TTD","TTWO","TXN","VRSK","VRTX",
+    "WBD","WDAY","WMT","XEL","ZS"
+]
+
+DAX_40 = [
+    "ADS.DE","AIR.DE","ALV.DE","BAS.DE","BAYN.DE","BEI.DE","BMW.DE",
+    "BNR.DE","CBK.DE","CON.DE","DB1.DE","DBK.DE","DHL.DE","DTE.DE",
+    "DTG.DE","EOAN.DE","FRE.DE","HEN3.DE","HEI.DE","HNR1.DE","HOT.DE",
+    "IFX.DE","MBG.DE","MRK.DE","MTX.DE","MUV2.DE","P911.DE","QIA.DE",
+    "RHM.DE","RWE.DE","SAP.DE","SRT3.DE","SIE.DE","SHL.DE","ENR.DE",
+    "SY1.DE","VNA.DE","VOW3.DE","ZAL.DE"
+]
+
+SP100 = [
+    "AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","BRK-B",
+    "LLY","JPM","V","MA","AVGO","XOM","UNH","COST","HD","PG",
+    "JNJ","ABBV","MRK","PEP","KO","BAC","WMT","CRM","AMD",
+    "NFLX","ADBE","LIN","ORCL","TMO","CVX","ACN","CSCO",
+    "MCD","DHR","ABT","TXN","QCOM","INTU","AMGN","CAT",
+    "IBM","GE","GS","RTX","LOW","ISRG","BKNG","BLK",
+    "SCHW","SPGI","SYK","MDT","ELV","VRTX","PLD","ADI",
+    "MU","PANW","LRCX","KLAC","SNPS","CDNS","CRWD","ABNB",
+    "UBER","SHOP","ARM","MELI","PGR","MMC","CI","CMCSA",
+    "TJX","C","USB","SO","DUK","AEP","MO","PM",
+    "GILD","REGN","MAR","ADP","CSX","ETN","PH","WM",
+    "APD","ECL","NKE","TGT","FIS","FICO","MS","AXP"
+]
+
 @st.cache_data(ttl=86400)
 def get_nasdaq_100():
-    tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
-    df = tables[4]
-    return df["Ticker"].astype(str).str.replace(".", "-", regex=False).tolist()
+    try:
+        tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
+        for df in tables:
+            if "Ticker" in df.columns:
+                return df["Ticker"].astype(str).str.replace(".", "-", regex=False).tolist()
+    except Exception:
+        pass
+
+    return NASDAQ_100
 
 @st.cache_data(ttl=86400)
 def get_sp500():
-    tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-    df = tables[0]
-    return df["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist()
+    try:
+        tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+        df = tables[0]
+        return df["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist()
+    except Exception:
+        pass
+
+    return SP500
 
 @st.cache_data(ttl=86400)
 def get_dax_40():
-    tables = pd.read_html("https://en.wikipedia.org/wiki/DAX")
-    for df in tables:
-        if "Ticker" in df.columns:
-            return (df["Ticker"].astype(str) + ".DE").tolist()
-    return []
+    try:
+        tables = pd.read_html("https://en.wikipedia.org/wiki/DAX")
+        for df in tables:
+            if "Ticker" in df.columns:
+                return (df["Ticker"].astype(str) + ".DE").tolist()
+    except Exception:
+        pass
 
-CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD"]
+    return DAX_40
+    
+CRYPTO = [
+    "BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD",
+    "DOGE-USD","AVAX-USD","LINK-USD","DOT-USD"
+]
 
 
 with st.sidebar:
