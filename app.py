@@ -381,10 +381,13 @@ table {
 }
 
 th {
-    text-align: center;
-    padding: 8px;
-    background-color: #262730;
-    color: white;
+    text-align: center !important;
+    padding: 10px;
+    background-color: #e6e6e6;
+    color: black;
+    font-weight: 700;
+    border-bottom: 2px solid #b0b0b0;
+    white-space: nowrap;
 }
 
 td {
@@ -403,12 +406,10 @@ td:nth-child(7),
 td:nth-child(8),
 td:nth-child(9) {
     text-align: center;
-    font-weight: bold;
 }
 
 td:nth-child(10) {
     text-align: center;
-    font-weight: bold;
     font-size: 16px;
 }
 
