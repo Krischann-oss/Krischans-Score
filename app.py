@@ -302,9 +302,9 @@ def analyze(ticker: str):
         "EMA20": round(ema20, 2),
         "Abstand EMA20 %": round(dist, 2),
         "RSI14": round(rsi14, 2),
-        "Trend-Score": trend_score,
-        "Entry-Score": entry_score,
-        "Momentum": momentum,
+        "Trend": trend_score,
+        "Entry": entry_score,
+        "Moment": momentum,
         "Score": score,
         "Kategorie": category,
         "Signal": signal,
@@ -341,8 +341,30 @@ summary = (
     .reset_index(drop=True)
 )
 
+styled = (
+    summary.style
+    .format({
+        "Trend-Score": "{:.0f}",
+        "Entry-Score": "{:.0f}",
+        "Momentum": "{:.0f}",
+        "Score": "{:.0f}",
+    })
+    .set_properties(
+        subset=[
+            "Trend-Score",
+            "Entry-Score",
+            "Momentum",
+            "Score"
+        ],
+        **{
+            "text-align": "center",
+            "font-weight": "bold"
+        }
+    )
+)
+
 st.subheader("📊 Bewertung")
-st.dataframe(summary, use_container_width=True, hide_index=True)
+st.dataframe(styled, use_container_width=True, hide_index=True)
 
 top = summary[
     (summary["Trend-Score"] == 15) &
@@ -371,7 +393,7 @@ cols = st.columns(min(4, len(summary)))
 
 for i, row in summary.iterrows():
     with cols[i % len(cols)]:
-        label = f"{row['Ticker']} · {row['Score']}/10"
+        label = f"{row['Ticker']} · {row['Score']}/30"
         if st.button(label, key=f"open_{row['Ticker']}", use_container_width=True):
             st.session_state.selected_ticker = row["Ticker"]
 
