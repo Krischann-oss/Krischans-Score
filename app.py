@@ -295,8 +295,14 @@ def analyze(ticker: str):
     else:
         category = "🔴 Meiden"
 
+    display_ticker = (
+    ticker
+    .replace(".DE", "")
+    .replace("-USD", "")
+)
+
     result = {
-        "Ticker": ticker,
+        "Ticker": display_ticker,
         "Name": get_name(ticker),
         "Kurs": round(close, 2),
         "EMA20": round(ema20, 2),
@@ -341,25 +347,39 @@ summary = (
     .reset_index(drop=True)
 )
 
-score_cols = [
-    col for col in ["Trend", "Entry", "Moment", "Score"]
-    if col in summary.columns
-]
+score_cols = [col for col in ["Trend", "Entry", "Moment", "Score"] if col in summary.columns]
 
 styled = (
     summary.style
-    .format({col: "{:.0f}" for col in score_cols})
-    .set_properties(
-        subset=score_cols,
-        **{
-            "text-align": "center",
-            "font-weight": "bold"
-        }
-    )
+    .format({
+        "Kurs": "{:.2f}",
+        "EMA20": "{:.2f}",
+        "Abstand EMA20 %": "{:.2f}",
+        "RSI14": "{:.2f}",
+        "Trend": "{:.0f}",
+        "Entry": "{:.0f}",
+        "Moment": "{:.0f}",
+        "Score": "{:.0f}",
+    })
 )
 
 st.subheader("📊 Bewertung")
-st.dataframe(styled, use_container_width=True, hide_index=True)
+
+st.dataframe(
+    styled,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "Trend": st.column_config.NumberColumn("Trend", format="%d"),
+        "Entry": st.column_config.NumberColumn("Entry", format="%d"),
+        "Moment": st.column_config.NumberColumn("Moment", format="%d"),
+        "Score": st.column_config.NumberColumn("Score", format="%d"),
+        "Kurs": st.column_config.NumberColumn("Kurs", format="%.2f"),
+        "EMA20": st.column_config.NumberColumn("EMA20", format="%.2f"),
+        "Abstand EMA20 %": st.column_config.NumberColumn("Abstand EMA20 %", format="%.2f"),
+        "RSI14": st.column_config.NumberColumn("RSI14", format="%.2f"),
+    }
+)
 
 top = summary[
     (summary["Trend"] == 15) &
