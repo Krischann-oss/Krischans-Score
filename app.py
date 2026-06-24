@@ -337,7 +337,7 @@ def make_html_table(df: pd.DataFrame) -> str:
             )
         )
 
-html = textwrap.dedent("""
+    html = textwrap.dedent("""
     <style>
     table {
         width: 100%;
