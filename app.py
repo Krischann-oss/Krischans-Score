@@ -341,21 +341,16 @@ summary = (
     .reset_index(drop=True)
 )
 
+score_cols = [
+    col for col in ["Trend", "Entry", "Moment", "Score"]
+    if col in summary.columns
+]
+
 styled = (
     summary.style
-    .format({
-        "Trend": "{:.0f}",
-        "Entry": "{:.0f}",
-        "Moment": "{:.0f}",
-        "Score": "{:.0f}",
-    })
+    .format({col: "{:.0f}" for col in score_cols})
     .set_properties(
-        subset=[
-            "Trend",
-            "Entrye",
-            "Moment",
-            "Score"
-        ],
+        subset=score_cols,
         **{
             "text-align": "center",
             "font-weight": "bold"
