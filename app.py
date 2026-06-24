@@ -104,10 +104,10 @@ with st.sidebar:
     interval = st.selectbox("Kerzen", ["1d", "1h", "4h"], index=0)
 
     buy_threshold = st.slider(
-        "Kaufalarm ab Score", 0, 25, 18)
+        "Kaufalarm ab Score", 0, 30, 25)
 
     sell_threshold = st.slider(
-        "Warnsignal bis Score", 0, 25, 9)
+        "Warnsignal bis Score", 0, 30, 14)
     
     max_results = st.slider("Max. angezeigte Ergebnisse", 5, 100, 30)
 
@@ -256,7 +256,26 @@ def analyze(ticker: str):
     else:
         notes.append("Zu weit von EMA20 entfernt")
 
-    score = trend_score + entry_score
+    # Momentum
+
+    recent_high = data["High"].tail(20).max()
+
+    distance_to_high = (recent_high - close) / recent_high * 100
+
+    if distance_to_high <= 2:
+        momentum = 5
+    elif distance_to_high <= 5:
+        momentum = 4
+    elif distance_to_high <= 10:
+        momentum = 3
+    elif distance_to_high <= 15:
+        momentum = 2
+    elif distance_to_high <= 20:
+        momentum = 1
+    else:
+        momentum = 0
+        
+    score = trend_score + entry_score + momentum
 
     if score >= buy_threshold:
         signal = "🟢 Kaufkandidat / Watchlist"
@@ -265,13 +284,13 @@ def analyze(ticker: str):
     else:
         signal = "🟡 Beobachten"
 
-    if score >= 22:
-        category = "🏆 Elite"
-    elif score >= 18:
+    if score >= 28:
+        category = "🏆 Perfekt"
+    elif score >= 24:
         category = "🚀 Kaufkandidat"
-    elif score >= 15:
+    elif score >= 20:
         category = "👀 Watchlist"
-    elif score >= 10:
+    elif score >= 15:
         category = "⚠️ Schwach"
     else:
         category = "🔴 Meiden"
@@ -285,6 +304,7 @@ def analyze(ticker: str):
         "RSI14": round(rsi14, 2),
         "Trend-Score": trend_score,
         "Entry-Score": entry_score,
+        "Momentum": momentum,
         "Score": score,
         "Kategorie": category,
         "Signal": signal,
@@ -324,7 +344,11 @@ summary = (
 st.subheader("📊 Bewertung")
 st.dataframe(summary, use_container_width=True, hide_index=True)
 
-top = summary[summary["Score"] >= 24]
+top = summary[
+    (summary["Trend-Score"] == 15) &
+    (summary["Entry-Score"] == 10) &
+    (summary["Momentum"] >= 4)
+]
 warn = summary[summary["Score"] <= sell_threshold]
 
 col1, col2, col3 = st.columns(3)
@@ -360,7 +384,7 @@ if selected not in charts:
 data = charts[selected]
 row = summary[summary["Ticker"] == selected].iloc[0]
 
-st.markdown(f"## {selected} · {row['Name']} · Score {row['Score']}/10")
+st.markdown(f"## {selected} · {row['Name']} · Score {row['Score']}/30")
 st.write(row["Signal"])
 st.caption(row["Begründung"])
 
