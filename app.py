@@ -4,8 +4,8 @@ import yfinance as yf
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="Krischan Score Web-App", layout="wide")
-st.title("Krischan Score: EMA20 + RSI")
-st.caption("Lern-Tool. Keine Finanzberatung.")
+st.title("Krischan Score: EMA20 + RSI + Momentum")
+st.caption("Lern-Tool. Keine Finanzberatung. Das Tool bewertet nur nach deinen Regeln und garantiert keine Gewinne.")
 
 DEFAULT_WATCHLIST = "QQQ, AAPL, NVDA, MU, PLD, BTC-USD, ETH-USD"
 
@@ -46,54 +46,58 @@ SP100 = [
     "APD","ECL","NKE","TGT","FIS","FICO","MS","AXP"
 ]
 
-@st.cache_data(ttl=86400)
-def get_nasdaq_100():
-    try:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
-        for df in tables:
-            if "Ticker" in df.columns:
-                return df["Ticker"].astype(str).str.replace(".", "-", regex=False).tolist()
-    except Exception:
-        pass
-
-    return NASDAQ_100
-
-@st.cache_data(ttl=86400)
-def get_sp100():
-    try:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-        df = tables[0]
-        return df["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist()
-    except Exception:
-        pass
-
-    return SP100
-
-@st.cache_data(ttl=86400)
-def get_dax_40():
-    try:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/DAX")
-        for df in tables:
-            if "Ticker" in df.columns:
-                return (df["Ticker"].astype(str) + ".DE").tolist()
-    except Exception:
-        pass
-
-    return DAX_40
-    
 CRYPTO = [
     "BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD",
     "DOGE-USD","AVAX-USD","LINK-USD","DOT-USD"
 ]
 
 
+@st.cache_data(ttl=86400)
+def get_nasdaq_100() -> list[str]:
+    try:
+        tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
+        for df in tables:
+            if "Ticker" in df.columns:
+                return (
+                    df["Ticker"]
+                    .astype(str)
+                    .str.replace(".", "-", regex=False)
+                    .str.upper()
+                    .tolist()
+                )
+    except Exception:
+        pass
+    return NASDAQ_100
+
+
+@st.cache_data(ttl=86400)
+def get_sp100() -> list[str]:
+    return SP100
+
+
+@st.cache_data(ttl=86400)
+def get_dax_40() -> list[str]:
+    try:
+        tables = pd.read_html("https://en.wikipedia.org/wiki/DAX")
+        for df in tables:
+            if "Ticker" in df.columns:
+                return (
+                    (df["Ticker"].astype(str) + ".DE")
+                    .str.replace("..DE", ".DE", regex=False)
+                    .tolist()
+                )
+    except Exception:
+        pass
+    return DAX_40
+
+
 with st.sidebar:
     st.header("Einstellungen")
 
     scan_mode = st.radio(
-    "Scan-Modus",
-    ["Eigene Watchlist", "Nasdaq 100", "S&P 500", "DAX 40", "Krypto", "Alles scannen"],
-)
+        "Scan-Modus",
+        ["Eigene Watchlist", "Nasdaq 100", "S&P 500", "DAX 40", "Krypto", "Alles scannen"],
+    )
 
     tickers_text = st.text_area(
         "Eigene Ticker, getrennt durch Komma",
@@ -103,12 +107,8 @@ with st.sidebar:
     period = st.selectbox("Zeitraum", ["3mo", "6mo", "1y", "2y"], index=2)
     interval = st.selectbox("Kerzen", ["1d", "1h", "4h"], index=0)
 
-    buy_threshold = st.slider(
-        "Kaufalarm ab Score", 0, 30, 25)
-
-    sell_threshold = st.slider(
-        "Warnsignal bis Score", 0, 30, 14)
-    
+    buy_threshold = st.slider("Kaufalarm ab Score", 0, 30, 25)
+    sell_threshold = st.slider("Warnsignal bis Score", 0, 30, 14)
     max_results = st.slider("Max. angezeigte Ergebnisse", 5, 100, 30)
 
 
@@ -128,12 +128,19 @@ def get_tickers() -> list[str]:
 
     return sorted(set(own + get_nasdaq_100() + get_sp100() + get_dax_40() + CRYPTO))
 
+
+def display_ticker_name(ticker: str) -> str:
+    return ticker.replace(".DE", "").replace("-USD", "")
+
+
 def rsi(series: pd.Series, length: int = 14) -> pd.Series:
     delta = series.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
+
     avg_gain = gain.ewm(alpha=1 / length, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1 / length, adjust=False).mean()
+
     rs = avg_gain / avg_loss.replace(0, pd.NA)
     return 100 - (100 / (1 + rs))
 
@@ -192,12 +199,9 @@ def analyze(ticker: str):
     dist = float(last["Dist_EMA20_%"])
     slope = float(last["EMA20_slope"])
 
-    score = 0
     trend_score = 0
     entry_score = 0
     notes = []
-
-    # EMA20
 
     if slope > ema20 * 0.03:
         trend_score += 5
@@ -208,9 +212,6 @@ def analyze(ticker: str):
     else:
         notes.append("EMA20 fällt")
 
-
-    # Kurs zu EMA20
-
     if close > ema20:
         trend_score += 5
         notes.append("Kurs über EMA20")
@@ -220,18 +221,14 @@ def analyze(ticker: str):
     else:
         notes.append("Kurs unter EMA20")
 
-    # Trendstruktur
-
-    if close > prev20["Close"].max() * 0.95:
+    if close > float(prev20["Close"].max()) * 0.95:
         trend_score += 5
-        notes.append("Höhere Hochs/Tiefs")
-    elif close > prev20["Close"].median():
+        notes.append("Nähe zum 20-Kerzen-Hoch")
+    elif close > float(prev20["Close"].median()):
         trend_score += 2
-        notes.append("Seitwärts")
+        notes.append("Seitwärts / mittlere Stärke")
     else:
         notes.append("Fallender Trend")
-
-    # RSI
 
     if 40 <= rsi14 <= 55:
         entry_score += 5
@@ -245,8 +242,6 @@ def analyze(ticker: str):
     else:
         notes.append("RSI ungünstig")
 
-    # Abstand zur EMA20
-
     if 0 <= dist <= 3:
         entry_score += 5
         notes.append("Perfekte EMA20-Nähe")
@@ -256,10 +251,7 @@ def analyze(ticker: str):
     else:
         notes.append("Zu weit von EMA20 entfernt")
 
-    # Momentum
-
-    recent_high = data["High"].tail(20).max()
-
+    recent_high = float(data["High"].tail(20).max())
     distance_to_high = (recent_high - close) / recent_high * 100
 
     if distance_to_high <= 2:
@@ -274,7 +266,7 @@ def analyze(ticker: str):
         momentum = 1
     else:
         momentum = 0
-        
+
     score = trend_score + entry_score + momentum
 
     if score >= buy_threshold:
@@ -295,29 +287,112 @@ def analyze(ticker: str):
     else:
         category = "🔴 Meiden"
 
-    display_ticker = (
-    ticker
-    .replace(".DE", "")
-    .replace("-USD", "")
-)
-
     result = {
-        "Ticker": display_ticker,
+        "Ticker": display_ticker_name(ticker),
+        "YahooTicker": ticker,
         "Name": get_name(ticker),
         "Kurs": round(close, 2),
         "EMA20": round(ema20, 2),
         "Abstand EMA20 %": round(dist, 2),
         "RSI14": round(rsi14, 2),
-        "Trend": trend_score,
-        "Entry": entry_score,
-        "Moment": momentum,
-        "Score": score,
+        "Trend": int(trend_score),
+        "Entry": int(entry_score),
+        "Moment": int(momentum),
+        "Score": int(score),
         "Kategorie": category,
         "Signal": signal,
         "Begründung": "; ".join(notes),
     }
 
     return result, data
+
+
+def score_color(score: int) -> str:
+    if score >= 28:
+        return "#00aa00"
+    if score >= 24:
+        return "#66cc00"
+    if score >= 20:
+        return "#ffcc00"
+    if score >= 15:
+        return "#ff8800"
+    return "#cc0000"
+
+
+def make_html_table(df: pd.DataFrame) -> str:
+    display_df = df.copy()
+    display_df = display_df.drop(columns=["YahooTicker"], errors="ignore")
+
+    for col in ["Kurs", "EMA20", "Abstand EMA20 %", "RSI14"]:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].map(lambda x: f"{float(x):.2f}")
+
+    if "Score" in display_df.columns:
+        display_df["Score"] = display_df["Score"].apply(
+            lambda x: (
+                f'<span style="color:{score_color(int(x))}; '
+                f'font-weight:bold; font-size:18px;">{int(x)}</span>'
+            )
+        )
+
+    html = """
+    <style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    th {
+        text-align: center !important;
+        padding: 10px;
+        background-color: #e6e6e6;
+        color: black;
+        font-weight: 700;
+        border-bottom: 2px solid #b0b0b0;
+        white-space: nowrap;
+    }
+
+    td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(150,150,150,0.20);
+    }
+
+    td:nth-child(1),
+    td:nth-child(2),
+    td:nth-child(12),
+    td:nth-child(13) {
+        text-align: left;
+    }
+
+    td:nth-child(3),
+    td:nth-child(4),
+    td:nth-child(5),
+    td:nth-child(6),
+    td:nth-child(7),
+    td:nth-child(8),
+    td:nth-child(9),
+    td:nth-child(10),
+    td:nth-child(11) {
+        text-align: center;
+    }
+
+    td:nth-child(11) {
+        font-size: 16px;
+    }
+
+    tr:nth-child(even) {
+        background-color: rgba(255,255,255,0.03);
+    }
+
+    tr:hover {
+        background-color: rgba(150,150,150,0.15);
+    }
+    </style>
+    """
+
+    html += display_df.to_html(index=False, escape=False)
+    return html
 
 
 tickers = get_tickers()
@@ -342,147 +417,59 @@ if not rows:
 
 summary = (
     pd.DataFrame(rows)
-    .sort_values(["Score", "Trend", "Entry"], ascending=False)
+    .sort_values(["Score", "Trend", "Entry", "Moment"], ascending=False)
     .head(max_results)
     .reset_index(drop=True)
 )
 
-score_cols = [col for col in ["Trend", "Entry", "Moment", "Score"] if col in summary.columns]
-
-styled = (
-    summary.style
-    .format({
-        "Kurs": "{:.2f}",
-        "EMA20": "{:.2f}",
-        "Abstand EMA20 %": "{:.2f}",
-        "RSI14": "{:.2f}",
-        "Trend": "{:.0f}",
-        "Entry": "{:.0f}",
-        "Moment": "{:.0f}",
-        "Score": "{:.0f}",
-    })
-)
-
 st.subheader("Bewertung")
-
-display_df = summary.copy()
-
-display_df["Kurs"] = display_df["Kurs"].map(lambda x: f"{x:.2f}")
-display_df["EMA20"] = display_df["EMA20"].map(lambda x: f"{x:.2f}")
-display_df["Abstand EMA20 %"] = display_df["Abstand EMA20 %"].map(lambda x: f"{x:.2f}")
-display_df["RSI14"] = display_df["RSI14"].map(lambda x: f"{x:.2f}")
-
-def score_color(score):
-    if score >= 28:
-        return "#00aa00"      # Dunkelgrün
-    elif score >= 24:
-        return "#66cc00"      # Hellgrün
-    elif score >= 20:
-        return "#ffcc00"      # Gelb
-    elif score >= 15:
-        return "#ff8800"      # Orange
-    else:
-        return "#cc0000"      # Rot
-
-display_df["Score"] = display_df["Score"].apply(
-    lambda x: f'<span style="color:{score_color(x)}; font-weight:bold; font-size:18px;">{x}</span>'
-)
-        
-html = """
-<style>
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-}
-
-th {
-    text-align: center !important;
-    padding: 10px;
-    background-color: #e6e6e6;
-    color: black;
-    font-weight: 700;
-    border-bottom: 2px solid #b0b0b0;
-    white-space: nowrap;
-}
-
-td {
-    padding: 8px;
-}
-
-td:nth-child(1),
-td:nth-child(2),
-td:nth-child(11),
-td:nth-child(12) {
-    text-align: left;
-}
-
-td:nth-child(3),
-td:nth-child(4),
-td:nth-child(5),
-td:nth-child(6),
-td:nth-child(7),
-td:nth-child(8),
-td:nth-child(9) {
-    text-align: center;
-}
-
-td:nth-child(10) {
-    text-align: center;
-    font-size: 16px;
-}
-
-tr:nth-child(even) {
-    background-color: rgba(255,255,255,0.03);
-}
-</style>
-"""
-
-html += display_df.to_html(index=False, escape=False)
-
-st.markdown(html, unsafe_allow_html=True)
+st.markdown(make_html_table(summary), unsafe_allow_html=True)
 
 top = summary[
     (summary["Trend"] == 15) &
     (summary["Entry"] == 10) &
     (summary["Moment"] >= 4)
 ]
+
 warn = summary[summary["Score"] <= sell_threshold]
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Gescannt", len(rows))
-col2.metric("Kaufkandidaten", len(top))
+col2.metric("Top-Setups", len(top))
 col3.metric("Warnsignale", len(warn))
 
-st.subheader("🏆 sehr gute Setups")
+st.subheader("🏆 Top-Setups")
 if top.empty:
-    st.info("Aktuell keine Werte über deinem Kaufalarm.")
+    st.info("Aktuell keine Top-Setups gefunden.")
 else:
-    st.dataframe(top, use_container_width=True, hide_index=True)
+    st.markdown(make_html_table(top), unsafe_allow_html=True)
 
 st.subheader("Zum Chart springen")
 
 if "selected_ticker" not in st.session_state:
-    st.session_state.selected_ticker = summary.loc[0, "Ticker"]
+    st.session_state.selected_ticker = summary.loc[0, "YahooTicker"]
 
 cols = st.columns(min(4, len(summary)))
 
 for i, row in summary.iterrows():
     with cols[i % len(cols)]:
         label = f"{row['Ticker']} · {row['Score']}/30"
-        if st.button(label, key=f"open_{row['Ticker']}", use_container_width=True):
-            st.session_state.selected_ticker = row["Ticker"]
+        if st.button(label, key=f"open_{row['YahooTicker']}", use_container_width=True):
+            st.session_state.selected_ticker = row["YahooTicker"]
 
 selected = st.session_state.selected_ticker
 
 if selected not in charts:
-    selected = summary.loc[0, "Ticker"]
+    selected = summary.loc[0, "YahooTicker"]
     st.session_state.selected_ticker = selected
 
 data = charts[selected]
-row = summary[summary["Ticker"] == selected].iloc[0]
+row = summary[summary["YahooTicker"] == selected].iloc[0]
 
-st.markdown(f"## {selected} · {row['Name']} · Score {row['Score']}/30")
+st.markdown(
+    f"## {row['Ticker']} · {row['Name']} · "
+    f"{row['Score']}/30 Punkte · {row['Kategorie']}"
+)
 st.write(row["Signal"])
 st.caption(row["Begründung"])
 
@@ -507,7 +494,7 @@ fig.add_trace(
 )
 
 fig.update_layout(
-    title=f"{selected}: Kurs + EMA20",
+    title=f"{row['Ticker']}: Kurs + EMA20",
     xaxis_rangeslider_visible=False,
     height=560,
 )
@@ -530,13 +517,13 @@ fig2.add_hline(y=40, line_dash="dot")
 fig2.add_hline(y=30, line_dash="dash")
 
 fig2.update_layout(
-    title=f"{selected}: RSI14",
+    title=f"{row['Ticker']}: RSI14",
     height=300,
 )
 
 st.plotly_chart(fig2, use_container_width=True)
 
 st.info(
-    "Hinweis: Das Tool bewertet nur nach deinen EMA20-/RSI-Regeln. "
+    "Hinweis: Das Tool bewertet nur nach deinen EMA20-/RSI-/Momentum-Regeln. "
     "Es ist keine Finanzberatung und garantiert keine Gewinne."
 )
