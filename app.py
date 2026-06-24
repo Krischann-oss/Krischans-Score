@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
+import textwrap
 
 st.set_page_config(page_title="Krischan Score Web-App", layout="wide")
 st.title("Krischan Score: EMA20 + RSI + Momentum")
@@ -335,7 +336,7 @@ def make_html_table(df: pd.DataFrame) -> str:
             )
         )
 
-    html = """
+html = textwrap.dedent("""
     <style>
     table {
         width: 100%;
@@ -377,19 +378,11 @@ def make_html_table(df: pd.DataFrame) -> str:
         text-align: center;
     }
 
-    td:nth-child(11) {
-        font-size: 16px;
-    }
-
     tr:nth-child(even) {
         background-color: rgba(255,255,255,0.03);
     }
-
-    tr:hover {
-        background-color: rgba(150,150,150,0.15);
-    }
     </style>
-    """
+    """)
 
     html += display_df.to_html(index=False, escape=False)
     return html
