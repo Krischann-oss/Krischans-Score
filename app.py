@@ -3,6 +3,7 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 import textwrap
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Krischan Score Web-App", layout="wide")
 st.title("Krischan Score: EMA20 + RSI + Momentum")
@@ -416,7 +417,11 @@ summary = (
 )
 
 st.subheader("Bewertung")
-st.markdown(make_html_table(summary), unsafe_allow_html=True)
+components.html(
+    html,
+    height=700,
+    scrolling=True
+)
 
 top = summary[
     (summary["Trend"] == 15) &
