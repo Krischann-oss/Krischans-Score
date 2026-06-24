@@ -363,23 +363,64 @@ styled = (
     })
 )
 
-st.subheader("📊 Bewertung")
+st.subheader("Bewertung")
 
-st.dataframe(
-    styled,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Trend": st.column_config.NumberColumn("Trend", format="%d"),
-        "Entry": st.column_config.NumberColumn("Entry", format="%d"),
-        "Moment": st.column_config.NumberColumn("Moment", format="%d"),
-        "Score": st.column_config.NumberColumn("Score", format="%d"),
-        "Kurs": st.column_config.NumberColumn("Kurs", format="%.2f"),
-        "EMA20": st.column_config.NumberColumn("EMA20", format="%.2f"),
-        "Abstand EMA20 %": st.column_config.NumberColumn("Abstand EMA20 %", format="%.2f"),
-        "RSI14": st.column_config.NumberColumn("RSI14", format="%.2f"),
-    }
-)
+display_df = summary.copy()
+
+display_df["Kurs"] = display_df["Kurs"].map(lambda x: f"{x:.2f}")
+display_df["EMA20"] = display_df["EMA20"].map(lambda x: f"{x:.2f}")
+display_df["Abstand EMA20 %"] = display_df["Abstand EMA20 %"].map(lambda x: f"{x:.2f}")
+display_df["RSI14"] = display_df["RSI14"].map(lambda x: f"{x:.2f}")
+
+html = """
+<style>
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+th {
+    text-align: center;
+    padding: 8px;
+    background-color: #262730;
+    color: white;
+}
+
+td {
+    padding: 8px;
+}
+
+td:nth-child(1),
+td:nth-child(2),
+td:nth-child(11),
+td:nth-child(12) {
+    text-align: left;
+}
+
+td:nth-child(6),
+td:nth-child(7),
+td:nth-child(8),
+td:nth-child(9) {
+    text-align: center;
+    font-weight: bold;
+}
+
+td:nth-child(10) {
+    text-align: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(255,255,255,0.03);
+}
+</style>
+"""
+
+html += display_df.to_html(index=False, escape=False)
+
+st.markdown(html, unsafe_allow_html=True)
 
 top = summary[
     (summary["Trend"] == 15) &
