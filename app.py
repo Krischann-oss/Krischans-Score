@@ -417,12 +417,12 @@ summary = (
 )
 
 st.subheader("Bewertung")
+
 components.html(
-    html,
+    make_html_table(summary),
     height=700,
     scrolling=True
 )
-
 top = summary[
     (summary["Trend"] == 15) &
     (summary["Entry"] == 10) &
