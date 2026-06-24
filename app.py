@@ -336,7 +336,7 @@ if not rows:
 
 summary = (
     pd.DataFrame(rows)
-    .sort_values(["Score", "Trend-Score", "Entry-Score"], ascending=False)
+    .sort_values(["Score", "Trend", "Entry"], ascending=False)
     .head(max_results)
     .reset_index(drop=True)
 )
