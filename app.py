@@ -344,9 +344,9 @@ summary = (
 styled = (
     summary.style
     .format({
-        "Trend-Score": "{:.0f}",
-        "Entry-Score": "{:.0f}",
-        "Momentum": "{:.0f}",
+        "Trend": "{:.0f}",
+        "Entry": "{:.0f}",
+        "Moment": "{:.0f}",
         "Score": "{:.0f}",
     })
     .set_properties(
