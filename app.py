@@ -351,9 +351,9 @@ styled = (
     })
     .set_properties(
         subset=[
-            "Trend-Score",
-            "Entry-Score",
-            "Momentum",
+            "Trend",
+            "Entrye",
+            "Moment",
             "Score"
         ],
         **{
@@ -367,9 +367,9 @@ st.subheader("📊 Bewertung")
 st.dataframe(styled, use_container_width=True, hide_index=True)
 
 top = summary[
-    (summary["Trend-Score"] == 15) &
-    (summary["Entry-Score"] == 10) &
-    (summary["Momentum"] >= 4)
+    (summary["Trend"] == 15) &
+    (summary["Entry"] == 10) &
+    (summary["Moment"] >= 4)
 ]
 warn = summary[summary["Score"] <= sell_threshold]
 
