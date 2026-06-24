@@ -372,6 +372,22 @@ display_df["EMA20"] = display_df["EMA20"].map(lambda x: f"{x:.2f}")
 display_df["Abstand EMA20 %"] = display_df["Abstand EMA20 %"].map(lambda x: f"{x:.2f}")
 display_df["RSI14"] = display_df["RSI14"].map(lambda x: f"{x:.2f}")
 
+def score_color(score):
+    if score >= 28:
+        return "#00aa00"      # Dunkelgrün
+    elif score >= 24:
+        return "#66cc00"      # Hellgrün
+    elif score >= 20:
+        return "#ffcc00"      # Gelb
+    elif score >= 15:
+        return "#ff8800"      # Orange
+    else:
+        return "#cc0000"      # Rot
+
+display_df["Score"] = display_df["Score"].apply(
+    lambda x: f'<span style="color:{score_color(x)}; font-weight:bold; font-size:18px;">{x}</span>'
+)
+        
 html = """
 <style>
 table {
@@ -401,6 +417,9 @@ td:nth-child(12) {
     text-align: left;
 }
 
+td:nth-child(3),
+td:nth-child(4),
+td:nth-child(5),
 td:nth-child(6),
 td:nth-child(7),
 td:nth-child(8),
